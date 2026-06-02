@@ -363,11 +363,11 @@
       <div class="field-row">
         <div class="field">
           <label for="kcal">kcal</label>
-          <input type="number" id="kcal" placeholder="0" inputmode="decimal" oninput="updateCalculated()">
+          <input type="text" id="kcal" placeholder="0" inputmode="decimal" oninput="updateCalculated()">
         </div>
         <div class="field">
           <label for="protein">Protein (g)</label>
-          <input type="number" id="protein" placeholder="0" inputmode="decimal" oninput="updateCalculated()">
+          <input type="text" id="protein" placeholder="0" inputmode="decimal" oninput="updateCalculated()">
         </div>
       </div>
     </div>
@@ -377,18 +377,18 @@
       <h2>Price</h2>
       <div class="field">
         <label for="price">Price per 100g (€)</label>
-        <input type="number" id="price" placeholder="0.00" inputmode="decimal" step="0.0001" oninput="updateCalculated()">
+        <input type="text" id="price" placeholder="0.00" inputmode="decimal" oninput="updateCalculated()">
       </div>
       <details class="price-calc">
         <summary>Calculate from package price &amp; weight</summary>
         <div class="field-row">
           <div class="field">
             <label for="pkg-price">Package price (€)</label>
-            <input type="number" id="pkg-price" placeholder="2.99" inputmode="decimal" oninput="calcFromPackage()">
+            <input type="text" id="pkg-price" placeholder="2,99" inputmode="decimal" oninput="calcFromPackage()">
           </div>
           <div class="field">
             <label for="pkg-weight">Weight (g)</label>
-            <input type="number" id="pkg-weight" placeholder="500" inputmode="numeric" oninput="calcFromPackage()">
+            <input type="text" id="pkg-weight" placeholder="500" inputmode="numeric" oninput="calcFromPackage()">
           </div>
         </div>
       </details>
@@ -679,9 +679,9 @@ async function scanNutritionLabel(base64, mimeType, apiKey) {
 // ---- Price calculator ----
 
 function calcFromPackage() {
-  const price  = parseFloat(document.getElementById('pkg-price').value);
-  const weight = parseFloat(document.getElementById('pkg-weight').value);
-  if (!isNaN(price) && !isNaN(weight) && weight > 0) {
+  const price  = parseNum('pkg-price');
+  const weight = parseNum('pkg-weight');
+  if (price > 0 && weight > 0) {
     document.getElementById('price').value = (price / weight * 100).toFixed(4);
     updateCalculated();
   }
@@ -690,9 +690,9 @@ function calcFromPackage() {
 // ---- Calculated results ----
 
 function updateCalculated() {
-  const price   = parseFloat(document.getElementById('price').value);
-  const protein = parseFloat(document.getElementById('protein').value);
-  const kcal    = parseFloat(document.getElementById('kcal').value);
+  const price   = parseNum('price');
+  const protein = parseNum('protein');
+  const kcal    = parseNum('kcal');
 
   const priceEl = document.getElementById('calc-price');
   const kcalEl  = document.getElementById('calc-kcal');
@@ -711,9 +711,9 @@ async function submitForm() {
     return;
   }
 
-  const price   = parseFloat(document.getElementById('price').value)   || null;
-  const protein = parseFloat(document.getElementById('protein').value) || null;
-  const kcal    = parseFloat(document.getElementById('kcal').value)    || null;
+  const price   = parseNum('price')   || null;
+  const protein = parseNum('protein') || null;
+  const kcal    = parseNum('kcal')    || null;
 
   const payload = {
     typeOfFood:      getVal('type-of-food'),
@@ -761,6 +761,7 @@ function resetProductFields() {
 
 function getVal(id) { return document.getElementById(id).value.trim(); }
 function setVal(id, v) { if (v !== '' && v != null) document.getElementById(id).value = v; }
+function parseNum(id) { return parseFloat(document.getElementById(id).value.replace(',', '.')) || 0; }
 
 function toBase64(file) {
   return new Promise((resolve, reject) => {
