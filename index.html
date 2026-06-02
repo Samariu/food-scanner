@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Food Scanner">
+  <title>Food Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root {
+      --green:       #16a34a;
+      --green-light: #dcfce7;
+      --green-hover: #15803d;
+      --bg:          #f0fdf4;
+      --card:        #ffffff;
+      --border:      #d1fae5;
+      --text:        #111827;
+      --muted:       #6b7280;
+      --r:           12px;
+      --shadow:      0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* ---- Header ---- */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--green);
+      color: #fff;
+      padding: 14px 16px;
+      padding-top: calc(14px + env(safe-area-inset-top));
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .app-header h1 { flex: 1; font-size: 18px; font-weight: 600; }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      opacity: .9;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .icon-btn:active { opacity: .6; }
+
+    /* ---- Layout ---- */
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ---- Cards ---- */
+    .card {
+      background: var(--card);
+      border-radius: var(--r);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+    .card h2 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .card-header h2 { flex: 1; margin-bottom: 0; }
+
+    /* ---- Form fields ---- */
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    input[type=text], input[type=number], input[type=url],
+    input[type=password], textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--text);
+      background: #fafafa;
+      -webkit-appearance: none;
+      transition: border-color .15s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--green);
+      background: #fff;
+    }
+    textarea { resize: none; }
+
+    small {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* ---- Buttons ---- */
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: var(--r);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-appearance: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s;
+    }
+    .btn-primary:active { background: var(--green-hover); }
+
+    .btn-secondary {
+      padding: 6px 12px;
+      background: var(--green-light);
+      color: var(--green);
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+
+    .btn-scan {
+      width: 100%;
+      padding: 18px;
+      background: var(--card);
+      color: var(--green);
+      border: 2px dashed var(--green);
+      border-radius: var(--r);
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-scan:active { background: var(--green-light); }
+
+    /* ---- Price calculator ---- */
+    .price-calc { margin-top: 10px; }
+    .price-calc summary {
+      font-size: 13px;
+      color: var(--green);
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .price-calc .field-row { margin-top: 10px; }
+
+    /* ---- Results card ---- */
+    .results-card { background: var(--green-light); border-color: #bbf7d0; }
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .result-item { display: flex; flex-direction: column; gap: 4px; }
+    .result-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .result-value { font-size: 22px; font-weight: 700; color: var(--green); }
+
+    /* ---- Scanner view ---- */
+    #scanner-view {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+    }
+    #scanner-container { flex: 1; overflow: hidden; }
+    /* Override html5-qrcode default button styles */
+    #scanner-container button { display: none !important; }
+    #scanner-container select { display: none !important; }
+    .scanner-footer {
+      padding: 16px;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      background: #111;
+    }
+    .scanner-footer button {
+      width: 100%;
+      padding: 14px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: var(--r);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .scanner-footer button:active { background: #444; }
+
+    /* ---- Setup guide ---- */
+    .setup-guide ol {
+      padding-left: 20px;
+      font-size: 14px;
+      line-height: 2;
+      color: var(--muted);
+    }
+    .setup-guide code {
+      background: #f3f4f6;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    /* ---- Toast ---- */
+    #toast {
+      position: fixed;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1a1a1a;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 1000;
+      transition: transform .25s ease;
+      white-space: nowrap;
+      max-width: 90vw;
+      text-align: center;
+      pointer-events: none;
+    }
+    #toast.show  { transform: translateX(-50%) translateY(0); }
+    #toast.error { background: #dc2626; }
+    #toast.warn  { background: #d97706; }
+
+    /* ---- Loading overlay ---- */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .loading-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-text { font-size: 14px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay" hidden>
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p id="loading-text">Loading…</p>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ======== MAIN VIEW ======== -->
+<div id="main-view">
+  <header class="app-header">
+    <h1>Food Scanner</h1>
+    <button class="icon-btn" onclick="openSettings()" aria-label="Settings">⚙</button>
+  </header>
+
+  <div class="container">
+
+    <button class="btn-scan" onclick="startBarcodeScanner()">
+      <span>📷</span> Scan Barcode
+    </button>
+
+    <!-- Product -->
+    <div class="card">
+      <h2>Product</h2>
+      <div class="field">
+        <label for="product-name">Name</label>
+        <input type="text" id="product-name" placeholder="e.g. Chicken Breast">
+      </div>
+      <div class="field">
+        <label for="type-of-food">Type of food</label>
+        <input type="text" id="type-of-food" placeholder="e.g. Meat, Dairy, Supplement">
+      </div>
+    </div>
+
+    <!-- Nutrition -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Nutrition per 100g</h2>
+        <label class="btn-secondary" for="label-input">📸 Scan label</label>
+        <input type="file" id="label-input" accept="image/*" capture="environment"
+               onchange="onLabelFile(this)" style="display:none">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="kcal">kcal</label>
+          <input type="number" id="kcal" placeholder="0" inputmode="decimal" oninput="updateCalculated()">
+        </div>
+        <div class="field">
+          <label for="protein">Protein (g)</label>
+          <input type="number" id="protein" placeholder="0" inputmode="decimal" oninput="updateCalculated()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Price -->
+    <div class="card">
+      <h2>Price</h2>
+      <div class="field">
+        <label for="price">Price per 100g (€)</label>
+        <input type="number" id="price" placeholder="0.00" inputmode="decimal" step="0.0001" oninput="updateCalculated()">
+      </div>
+      <details class="price-calc">
+        <summary>Calculate from package price &amp; weight</summary>
+        <div class="field-row">
+          <div class="field">
+            <label for="pkg-price">Package price (€)</label>
+            <input type="number" id="pkg-price" placeholder="2.99" inputmode="decimal" oninput="calcFromPackage()">
+          </div>
+          <div class="field">
+            <label for="pkg-weight">Weight (g)</label>
+            <input type="number" id="pkg-weight" placeholder="500" inputmode="numeric" oninput="calcFromPackage()">
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Calculated results -->
+    <div class="card results-card">
+      <h2>Calculated</h2>
+      <div class="results-grid">
+        <div class="result-item">
+          <span class="result-label">Price / 10g protein</span>
+          <span class="result-value" id="calc-price">—</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">kcal / 10g protein</span>
+          <span class="result-value" id="calc-kcal">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details -->
+    <div class="card">
+      <h2>Details</h2>
+      <div class="field">
+        <label for="shop">Shop</label>
+        <input type="text" id="shop" placeholder="e.g. Aldi, Rewe, Amazon">
+      </div>
+      <div class="field">
+        <label for="diet">Diet</label>
+        <input type="text" id="diet" placeholder="e.g. omnivore, vegan">
+      </div>
+      <div class="field">
+        <label for="link">Link</label>
+        <input type="url" id="link" placeholder="https://...">
+      </div>
+      <div class="field">
+        <label for="comment">Comment</label>
+        <textarea id="comment" rows="2" placeholder="Optional notes"></textarea>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="submitForm()">Add to Spreadsheet</button>
+
+  </div>
+</div>
+
+<!-- ======== SCANNER VIEW ======== -->
+<div id="scanner-view">
+  <div id="scanner-container"></div>
+  <div class="scanner-footer">
+    <button onclick="cancelScanner()">✕ Cancel</button>
+  </div>
+</div>
+
+<!-- ======== SETTINGS VIEW ======== -->
+<div id="settings-view" style="display:none">
+  <header class="app-header">
+    <button class="icon-btn" onclick="closeSettings()">←</button>
+    <h1>Settings</h1>
+  </header>
+  <div class="container">
+
+    <div class="card">
+      <h2>Configuration</h2>
+      <div class="field">
+        <label for="s-script-url">Apps Script URL</label>
+        <input type="url" id="s-script-url" placeholder="https://script.google.com/macros/s/…/exec">
+      </div>
+      <div class="field">
+        <label for="s-api-key">Claude API Key (optional)</label>
+        <input type="password" id="s-api-key" placeholder="sk-ant-…">
+        <small>Required for the "Scan label" feature (used when a product barcode isn't in Open Food Facts).</small>
+      </div>
+      <div class="field">
+        <label for="s-sheet-name">Sheet tab name</label>
+        <input type="text" id="s-sheet-name" placeholder="Sheet1">
+      </div>
+      <button class="btn-primary" onclick="saveSettings()">Save</button>
+    </div>
+
+    <div class="card setup-guide">
+      <h2>First-time setup</h2>
+      <ol>
+        <li>Open your Google Sheet</li>
+        <li>Go to <strong>Extensions → Apps Script</strong></li>
+        <li>Paste the contents of <code>apps_script.gs</code></li>
+        <li>Replace <code>YOUR_SPREADSHEET_ID</code> with your sheet ID (the long string in the URL)</li>
+        <li>Click <strong>Deploy → New deployment → Web app</strong></li>
+        <li>Set "Execute as: Me" and "Who has access: Anyone"</li>
+        <li>Authorize when prompted, then copy the URL here</li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let qrCode = null;
+let toastTimer = null;
+
+// ---- View management ----
+
+function showMain() {
+  document.getElementById('main-view').style.display = '';
+  document.getElementById('scanner-view').style.display = 'none';
+  document.getElementById('settings-view').style.display = 'none';
+}
+
+function showScannerView() {
+  document.getElementById('main-view').style.display = 'none';
+  document.getElementById('scanner-view').style.display = 'flex';
+  document.getElementById('settings-view').style.display = 'none';
+}
+
+function openSettings() {
+  document.getElementById('main-view').style.display = 'none';
+  document.getElementById('scanner-view').style.display = 'none';
+  document.getElementById('settings-view').style.display = '';
+  loadSettingsIntoForm();
+}
+
+function closeSettings() {
+  showMain();
+}
+
+// ---- Settings ----
+
+function loadSettingsIntoForm() {
+  document.getElementById('s-script-url').value = localStorage.getItem('scriptUrl') || '';
+  document.getElementById('s-api-key').value    = localStorage.getItem('apiKey')    || '';
+  document.getElementById('s-sheet-name').value = localStorage.getItem('sheetName') || 'Sheet1';
+}
+
+function saveSettings() {
+  localStorage.setItem('scriptUrl', document.getElementById('s-script-url').value.trim());
+  localStorage.setItem('apiKey',    document.getElementById('s-api-key').value.trim());
+  localStorage.setItem('sheetName', document.getElementById('s-sheet-name').value.trim() || 'Sheet1');
+  showMain();
+  showToast('Settings saved');
+}
+
+// ---- Barcode scanner ----
+
+async function startBarcodeScanner() {
+  showScannerView();
+
+  const container = document.getElementById('scanner-container');
+  container.innerHTML = '';
+
+  qrCode = new Html5Qrcode('scanner-container');
+
+  const formats = [
+    Html5QrcodeSupportedFormats.EAN_13,
+    Html5QrcodeSupportedFormats.EAN_8,
+    Html5QrcodeSupportedFormats.UPC_A,
+    Html5QrcodeSupportedFormats.UPC_E,
+    Html5QrcodeSupportedFormats.CODE_128,
+  ];
+
+  try {
+    await qrCode.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: { width: Math.min(280, window.innerWidth - 64), height: 160 },
+        formatsToSupport: formats
+      },
+      onBarcodeFound,
+      () => {}
+    );
+  } catch (err) {
+    qrCode = null;
+    showMain();
+    showToast('Camera error: ' + (err.message || err), 'error');
+  }
+}
+
+async function stopScanner() {
+  if (!qrCode) return;
+  try { await qrCode.stop(); }  catch (e) {}
+  try { qrCode.clear(); }       catch (e) {}
+  qrCode = null;
+}
+
+async function cancelScanner() {
+  await stopScanner();
+  showMain();
+}
+
+async function onBarcodeFound(barcode) {
+  await stopScanner();
+  showMain();
+  setLoading(true, 'Looking up product…');
+
+  try {
+    const product = await lookupBarcode(barcode);
+    setLoading(false);
+
+    if (product) {
+      if (product.name)    setVal('product-name', product.name);
+      if (product.kcal !== '') setVal('kcal', product.kcal);
+      if (product.protein !== '') setVal('protein', product.protein);
+      if (product.link)    setVal('link', product.link);
+      updateCalculated();
+      showToast('Product found ✓');
+    } else {
+      showToast('Not in Open Food Facts — fill in manually or scan label', 'warn');
+    }
+  } catch (err) {
+    setLoading(false);
+    showToast('Lookup failed: ' + err.message, 'error');
+  }
+}
+
+// ---- Open Food Facts ----
+
+async function lookupBarcode(barcode) {
+  const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+  if (!res.ok) throw new Error('Network error ' + res.status);
+  const data = await res.json();
+  if (data.status !== 1) return null;
+
+  const p = data.product || {};
+  const n = p.nutriments || {};
+
+  return {
+    name:    p.product_name || p.generic_name || '',
+    kcal:    n['energy-kcal_100g'] ?? n['energy-kcal'] ?? '',
+    protein: n['proteins_100g']    ?? n['proteins']    ?? '',
+    link:    `https://world.openfoodfacts.org/product/${barcode}`
+  };
+}
+
+// ---- Label scan via Claude Vision ----
+
+async function onLabelFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const apiKey = localStorage.getItem('apiKey');
+  if (!apiKey) {
+    showToast('Add a Claude API key in Settings first', 'error');
+    return;
+  }
+
+  setLoading(true, 'Reading nutrition label…');
+
+  try {
+    const { base64, mimeType } = await toBase64(file);
+    const result = await scanNutritionLabel(base64, mimeType, apiKey);
+    setLoading(false);
+
+    let filled = 0;
+    if (result.protein_per_100g != null) { setVal('protein', result.protein_per_100g); filled++; }
+    if (result.kcal_per_100g    != null) { setVal('kcal',    result.kcal_per_100g);    filled++; }
+    updateCalculated();
+
+    showToast(filled > 0 ? `Label scanned ✓ (${filled} values)` : 'No values found in label', filled > 0 ? 'success' : 'warn');
+  } catch (err) {
+    setLoading(false);
+    showToast('Label scan failed: ' + err.message, 'error');
+  }
+}
+
+async function scanNutritionLabel(base64, mimeType, apiKey) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+          { type: 'text', text: 'Extract from this nutrition label. Return ONLY valid JSON, nothing else: {"protein_per_100g": number_or_null, "kcal_per_100g": number_or_null}' }
+        ]
+      }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  const text = data.content[0].text.trim();
+  const match = text.match(/\{[\s\S]*?\}/);
+  if (!match) throw new Error('Could not parse API response');
+  return JSON.parse(match[0]);
+}
+
+// ---- Price calculator ----
+
+function calcFromPackage() {
+  const price  = parseFloat(document.getElementById('pkg-price').value);
+  const weight = parseFloat(document.getElementById('pkg-weight').value);
+  if (!isNaN(price) && !isNaN(weight) && weight > 0) {
+    document.getElementById('price').value = (price / weight * 100).toFixed(4);
+    updateCalculated();
+  }
+}
+
+// ---- Calculated results ----
+
+function updateCalculated() {
+  const price   = parseFloat(document.getElementById('price').value);
+  const protein = parseFloat(document.getElementById('protein').value);
+  const kcal    = parseFloat(document.getElementById('kcal').value);
+
+  const priceEl = document.getElementById('calc-price');
+  const kcalEl  = document.getElementById('calc-kcal');
+
+  priceEl.textContent = (price > 0 && protein > 0) ? '€' + (price / protein * 10).toFixed(2) : '—';
+  kcalEl.textContent  = (kcal  > 0 && protein > 0) ? Math.round(kcal / protein * 10) + ' kcal' : '—';
+}
+
+// ---- Submit ----
+
+async function submitForm() {
+  const scriptUrl = localStorage.getItem('scriptUrl');
+  if (!scriptUrl) {
+    showToast('Configure the Apps Script URL in Settings first', 'error');
+    openSettings();
+    return;
+  }
+
+  const price   = parseFloat(document.getElementById('price').value)   || null;
+  const protein = parseFloat(document.getElementById('protein').value) || null;
+  const kcal    = parseFloat(document.getElementById('kcal').value)    || null;
+
+  const payload = {
+    typeOfFood:      getVal('type-of-food'),
+    specificProduct: getVal('product-name'),
+    link:            getVal('link'),
+    pricePer100g:    price,
+    kcalPer100g:     kcal,
+    proteinPer100g:  protein,
+    diet:            getVal('diet'),
+    shop:            getVal('shop'),
+    comment:         getVal('comment'),
+    sheetName:       localStorage.getItem('sheetName') || 'Sheet1'
+  };
+
+  setLoading(true, 'Saving to spreadsheet…');
+
+  try {
+    const formData = new FormData();
+    formData.append('payload', JSON.stringify(payload));
+
+    const res  = await fetch(scriptUrl, { method: 'POST', body: formData });
+    const data = await res.json();
+    setLoading(false);
+
+    if (data.success) {
+      showToast('Added to spreadsheet ✓');
+      resetProductFields();
+    } else {
+      showToast('Script error: ' + data.error, 'error');
+    }
+  } catch (err) {
+    setLoading(false);
+    showToast('Failed: ' + err.message, 'error');
+  }
+}
+
+function resetProductFields() {
+  ['product-name', 'kcal', 'protein', 'link', 'price', 'pkg-price', 'pkg-weight', 'comment']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  updateCalculated();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---- Helpers ----
+
+function getVal(id) { return document.getElementById(id).value.trim(); }
+function setVal(id, v) { if (v !== '' && v != null) document.getElementById(id).value = v; }
+
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve({ base64: reader.result.split(',')[1], mimeType: file.type });
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function showToast(message, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.className   = 'toast show' + (type !== 'success' ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'toast'; }, 3500);
+}
+
+function setLoading(show, message = '') {
+  document.getElementById('loading-overlay').hidden = !show;
+  if (message) document.getElementById('loading-text').textContent = message;
+}
+
+// ---- Init ----
+
+if (!localStorage.getItem('scriptUrl')) {
+  openSettings();
+}
+</script>
+</body>
+</html>
