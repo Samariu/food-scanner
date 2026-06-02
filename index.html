@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Food Scanner">
   <title>Food Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
   <style>
     :root {
       --green:       #16a34a;
@@ -214,10 +214,11 @@
       display: none;
       flex-direction: column;
     }
-    #scanner-container { flex: 1; overflow: hidden; min-height: 0; }
-    /* Override html5-qrcode default button styles */
-    #scanner-container button { display: none !important; }
-    #scanner-container select { display: none !important; }
+    #scanner-container { flex: 1; overflow: hidden; min-height: 0; position: relative; }
+    #scanner-container video {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    #scanner-container canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     .scanner-footer {
       padding: 16px;
       padding-bottom: calc(16px + env(safe-area-inset-bottom));
@@ -486,7 +487,7 @@
 </div>
 
 <script>
-let qrCode = null;
+let scannerActive = false;
 let toastTimer = null;
 
 // ---- View management ----
@@ -532,63 +533,74 @@ function saveSettings() {
 
 // ---- Barcode scanner ----
 
-async function getPreferredCamera() {
-  if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-    return { facingMode: 'environment' };
-  }
+async function getIOSTelephotoDeviceId() {
   try {
-    const cameras = await Html5Qrcode.getCameras();
-    const back = cameras.filter(c => {
-      const l = c.label.toLowerCase();
-      return !l.includes('front') && !l.includes('facetime');
-    });
-    // Prefer telephoto by label
-    const telephoto = back.find(c => {
-      const l = c.label.toLowerCase();
-      return l.includes('telephoto') || l.includes('tele');
-    });
-    if (telephoto) return telephoto.id;
-    // Fallback: second back camera is usually telephoto on dual-camera iPhones
-    if (back.length >= 2) return back[1].id;
-    if (back.length >= 1) return back[0].id;
-  } catch (e) {
-    // ignore, fall through to default
-  }
-  return { facingMode: 'environment' };
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    stream.getTracks().forEach(t => t.stop());
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const back = devices
+      .filter(d => d.kind === 'videoinput')
+      .filter(d => !d.label.toLowerCase().includes('front') && !d.label.toLowerCase().includes('facetime'));
+    const telephoto = back.find(d => /telephoto|tele/i.test(d.label));
+    if (telephoto) return telephoto.deviceId;
+    if (back.length >= 2) return back[1].deviceId;
+  } catch (e) {}
+  return null;
 }
 
 async function startBarcodeScanner() {
   showScannerView();
+  scannerActive = false;
 
-  const container = document.getElementById('scanner-container');
-  container.innerHTML = '';
+  document.getElementById('scanner-container').innerHTML = '';
 
-  qrCode = new Html5Qrcode('scanner-container');
-
-  try {
-    const cameraConfig = await getPreferredCamera();
-    await qrCode.start(
-      cameraConfig,
-      { fps: 10, qrbox: { width: 250, height: 150 } },
-      onBarcodeFound,
-      () => {}
-    );
-  } catch (err) {
-    qrCode = null;
-    showMain();
-    showToast('Camera error: ' + (err.message || err), 'error');
+  const videoConstraints = {};
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    const id = await getIOSTelephotoDeviceId();
+    if (id) videoConstraints.deviceId = { exact: id };
+    else videoConstraints.facingMode = 'environment';
+  } else {
+    videoConstraints.facingMode = 'environment';
   }
+
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: document.getElementById('scanner-container'),
+      constraints: { ...videoConstraints, width: { ideal: 1280 }, height: { ideal: 720 } },
+    },
+    locator: { patchSize: 'medium', halfSample: true },
+    numOfWorkers: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 0 : 2,
+    decoder: {
+      readers: ['ean_reader', 'ean_8_reader', 'upc_reader', 'upc_e_reader', 'code_128_reader']
+    },
+    locate: true,
+  }, function(err) {
+    if (err) {
+      showMain();
+      showToast('Camera error: ' + (err.message || String(err)), 'error');
+      return;
+    }
+    Quagga.start();
+  });
+
+  Quagga.onDetected(async function handler(result) {
+    if (scannerActive) return;
+    scannerActive = true;
+    Quagga.offDetected(handler);
+    stopScanner();
+    showMain();
+    await onBarcodeFound(result.codeResult.code);
+  });
 }
 
-async function stopScanner() {
-  if (!qrCode) return;
-  try { await qrCode.stop(); }  catch (e) {}
-  try { qrCode.clear(); }       catch (e) {}
-  qrCode = null;
+function stopScanner() {
+  try { Quagga.stop(); } catch (e) {}
 }
 
 async function cancelScanner() {
-  await stopScanner();
+  stopScanner();
   showMain();
 }
 
