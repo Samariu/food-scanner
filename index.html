@@ -532,6 +532,31 @@ function saveSettings() {
 
 // ---- Barcode scanner ----
 
+async function getPreferredCamera() {
+  if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    return { facingMode: 'environment' };
+  }
+  try {
+    const cameras = await Html5Qrcode.getCameras();
+    const back = cameras.filter(c => {
+      const l = c.label.toLowerCase();
+      return !l.includes('front') && !l.includes('facetime');
+    });
+    // Prefer telephoto by label
+    const telephoto = back.find(c => {
+      const l = c.label.toLowerCase();
+      return l.includes('telephoto') || l.includes('tele');
+    });
+    if (telephoto) return telephoto.id;
+    // Fallback: second back camera is usually telephoto on dual-camera iPhones
+    if (back.length >= 2) return back[1].id;
+    if (back.length >= 1) return back[0].id;
+  } catch (e) {
+    // ignore, fall through to default
+  }
+  return { facingMode: 'environment' };
+}
+
 async function startBarcodeScanner() {
   showScannerView();
 
@@ -541,8 +566,9 @@ async function startBarcodeScanner() {
   qrCode = new Html5Qrcode('scanner-container');
 
   try {
+    const cameraConfig = await getPreferredCamera();
     await qrCode.start(
-      { facingMode: 'environment' },
+      cameraConfig,
       { fps: 10, qrbox: { width: 250, height: 150 } },
       onBarcodeFound,
       () => {}
