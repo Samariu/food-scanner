@@ -308,7 +308,7 @@
 <body>
 
 <!-- Loading overlay -->
-<div id="loading-overlay" hidden>
+<div id="loading-overlay" style="display:none">
   <div class="loading-box">
     <div class="spinner"></div>
     <p id="loading-text">Loading…</p>
@@ -784,7 +784,7 @@ function showToast(message, type = 'success') {
 }
 
 function setLoading(show, message = '') {
-  document.getElementById('loading-overlay').hidden = !show;
+  document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
   if (message) document.getElementById('loading-text').textContent = message;
 }
 
